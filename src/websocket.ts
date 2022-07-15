@@ -1,4 +1,6 @@
+import { response } from "express";
 import { io } from "./http";
+import { getMessagesRoom } from "./utils/getMessagesRoom";
 
 interface RoomUser {
     room: string;
@@ -17,11 +19,10 @@ const users: RoomUser[] = [];
 const messages: Message[] = [];
 
 io.on("connection", socket => {
-    console.log(socket.id);
 
-    socket.on("room", data => {
-        console.log("nova usuário na sala", data);
-        socket.join(data);
+    socket.on("room", (data, response) => {
+        console.log("[SOCKET] ROOM");
+        socket.join(data.room);
 
         const userInRoom = users.find(user => {
             return user.username === data.username
@@ -30,18 +31,24 @@ io.on("connection", socket => {
 
         if(userInRoom) {
             userInRoom.socketId = socket.id;
+            console.log("[SOCKET] atualizado user: ", users);
             return
         }
         
         users.push({
             room: data.room,
             username: data.username,
-            socketId: data.socketId,
-        })
-    })
+            socketId: socket.id,
+        });
+
+        const messagesRoom = getMessagesRoom(data.room, messages);
+        response(messagesRoom);
+
+        console.log("[SOCKET] criado usuário: ", users);
+    });
 
     socket.on("send-message", data => {
-        console.log("nova mensagem", data);
+        console.log("[SOCKET] SEND MESSAGE", data);
         const newMessage: Message = {
             room: data.room,
             username: data.username,
@@ -49,7 +56,16 @@ io.on("connection", socket => {
             createdAt: new Date(),
         }
         messages.push(newMessage);
-        socket.to(data.room).emit("receive-message", newMessage);
+        console.log(messages);
+        io.to(data.room).emit("receive-message", newMessage);
     })
+
+    socket.on("disconnecting", () => {
+        console.log("[SOCKET] disconnecting user", socket.id);
+    });
+    
+    socket.on("disconnect", () => {
+        console.log("[SOCKET] null users");
+    });
 
 });
