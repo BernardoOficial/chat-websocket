@@ -6,7 +6,7 @@ const serverHTTP = http.createServer(app);
 
 const io = new Server(serverHTTP, {
     cors: {
-        origin: "http://localhost:3000"
+        origin: "*"
     }
 });
 
